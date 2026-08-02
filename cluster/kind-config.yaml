@@ -7,6 +7,9 @@ nodes:
     topology.kubernetes.io/zone: zone-a
 - role: worker
   labels:
+    topology.kubernetes.io/zone: zone-a
+- role: worker
+  labels:
     topology.kubernetes.io/zone: zone-b
 - role: worker
   labels:
