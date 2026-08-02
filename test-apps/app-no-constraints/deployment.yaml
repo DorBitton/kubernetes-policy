@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: app-no-constraints
+  name: app-no-constraints
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: app-no-constraints
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: app-no-constraints
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+        resources: {}
+status: {}

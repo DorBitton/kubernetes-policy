@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-soft-affinity
+  labels:
+    app: app-soft-affinity
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: app-soft-affinity
+  template:
+    metadata:
+      labels:
+        app: app-soft-affinity
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: topology.kubernetes.io/zone
+                operator: In
+                values:
+                - zone-a
+      containers:
+      - name: nginx
+        image: nginx

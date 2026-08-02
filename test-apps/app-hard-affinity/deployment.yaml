@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-hard-affinity
+  labels:
+    app: app-hard-affinity
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: app-hard-affinity
+  template:
+    metadata:
+      labels:
+        app: app-hard-affinity
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: topology.kubernetes.io/zone
+                operator: In
+                values:
+                - zone-a
+      containers:
+      - name: nginx
+        image: nginx
