@@ -68,3 +68,14 @@ edge case 2 - capacity lost while pods already running (simulated AZ outage):
 
 cleanup leftover Completed pods from rollout restarts:
     kubectl delete pods -l app=app-no-constraints --field-selector=status.phase=Succeeded
+
+
+helm
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+
+kyverno 3.8.2
+helm repo add kyverno https://kyverno.github.io/kyverno/
+helm repo update
+helm install kyverno kyverno/kyverno -n kyverno --create-namespace --version 3.8.2
+
