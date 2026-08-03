@@ -1,0 +1,43 @@
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
+metadata:
+  name: default-zone-spread
+  annotations:
+    kyverno.io/kyverno-version: 1.18.2
+spec:
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ['apps']
+        apiVersions: ['v1']
+        operations: ['CREATE', 'UPDATE']
+        resources: ['deployments']
+  matchConditions:
+    - name: no-existing-topology-spread
+      expression: '!has(object.spec.template.spec.topologySpreadConstraints)'
+    - name: no-existing-node-selector
+      expression: '!has(object.spec.template.spec.nodeSelector)'
+    - name: no-existing-affinity
+      expression: '!has(object.spec.template.spec.affinity)'
+  mutations:
+    - patchType: ApplyConfiguration
+      applyConfiguration:
+        expression: >
+          Object{
+            spec: Object.spec{
+              template: Object.spec.template{
+                spec: Object.spec.template.spec{
+                  topologySpreadConstraints: [
+                    Object{
+                      maxSkew: 1,
+                      topologyKey: "topology.kubernetes.io/zone",
+                      whenUnsatisfiable: "ScheduleAnyway",
+                      labelSelector: Object{
+                        matchLabels: object.spec.selector.matchLabels
+                      },
+                      matchLabelKeys: ["pod-template-hash"]
+                    }
+                  ]
+                }
+              }
+            }
+          }
