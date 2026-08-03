@@ -1,43 +1,46 @@
-apiVersion: policies.kyverno.io/v1
-kind: MutatingPolicy
+# Using the classic ClusterPolicy engine (deprecated, removal targeted for
+# Kyverno v1.20 ~Oct 2026) instead of the newer CEL-based MutatingPolicy.
+# MutatingPolicy was tried first and both its patchType options failed on
+# this exact mutation, confirmed to be Kyverno engine bugs and not real
+# Kubernetes API constraints (an identical raw `kubectl patch` succeeds):
+#   - ApplyConfiguration: "may not mutate atomic arrays, maps or structs"
+#     the moment a LabelSelector-typed field is set on a new list element.
+#   - JSONPatch: CEL type-checker fails to compile a map literal mixing
+#     int (maxSkew) with string/map values, even wrapped in dyn().
+# Revisit once Kyverno fixes this and migrate back to MutatingPolicy.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
 metadata:
   name: default-zone-spread
-  annotations:
-    kyverno.io/kyverno-version: 1.18.2
 spec:
-  matchConstraints:
-    resourceRules:
-      - apiGroups: ['apps']
-        apiVersions: ['v1']
-        operations: ['CREATE', 'UPDATE']
-        resources: ['deployments']
-  matchConditions:
-    - name: no-existing-topology-spread
-      expression: '!has(object.spec.template.spec.topologySpreadConstraints)'
-    - name: no-existing-node-selector
-      expression: '!has(object.spec.template.spec.nodeSelector)'
-    - name: no-existing-affinity
-      expression: '!has(object.spec.template.spec.affinity)'
-  mutations:
-    - patchType: ApplyConfiguration
-      applyConfiguration:
-        expression: >
-          Object{
-            spec: Object.spec{
-              template: Object.spec.template{
-                spec: Object.spec.template.spec{
-                  topologySpreadConstraints: [
-                    Object{
-                      maxSkew: 1,
-                      topologyKey: "topology.kubernetes.io/zone",
-                      whenUnsatisfiable: "ScheduleAnyway",
-                      labelSelector: Object{
-                        matchLabels: object.spec.selector.matchLabels
-                      },
-                      matchLabelKeys: ["pod-template-hash"]
-                    }
-                  ]
-                }
-              }
-            }
-          }
+  rules:
+    - name: inject-zone-topology-spread
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+      preconditions:
+        all:
+          - key: "{{ request.object.spec.template.spec.topologySpreadConstraints || '' }}"
+            operator: Equals
+            value: ''
+          - key: "{{ request.object.spec.template.spec.nodeSelector || '' }}"
+            operator: Equals
+            value: ''
+          - key: "{{ request.object.spec.template.spec.affinity || '' }}"
+            operator: Equals
+            value: ''
+      mutate:
+        patchStrategicMerge:
+          spec:
+            template:
+              spec:
+                topologySpreadConstraints:
+                  - maxSkew: 1
+                    topologyKey: topology.kubernetes.io/zone
+                    whenUnsatisfiable: ScheduleAnyway
+                    labelSelector:
+                      matchLabels: "{{ request.object.spec.selector.matchLabels }}"
+                    matchLabelKeys:
+                      - pod-template-hash
