@@ -1,8 +1,7 @@
 # Reproducing the edge-case tests
 
-Not part of install — these are the exact commands used to demonstrate the
-edge cases listed in the top-level README. Run after `install/setup.sh`
-(policy intentionally not yet applied — see below).
+Commands used to demonstrate the edge cases in the top-level README. Run after
+`install/setup.sh` — policy not applied yet, see below.
 
 ## Baseline + conflicting-constraint fixtures
 

@@ -40,8 +40,7 @@ You should see one control-plane node and 4 worker nodes labeled
 
 Applies `cluster/policy/*.yaml`. Safe to re-run. Policies only affect
 Deployments created or updated *after* they're applied — nothing already
-running gets touched retroactively (this is also edge case 1 in the
-top-level README, not just a quirk of this script).
+running gets touched retroactively (see edge case 1 in the top-level README).
 
 See `docs/testing.md` for the commands used to reproduce the edge-case demos,
 and `docs/decisions.md` for why things are built the way they are.
