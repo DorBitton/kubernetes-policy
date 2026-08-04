@@ -44,3 +44,22 @@ spec:
                       matchLabels: "{{ request.object.spec.selector.matchLabels }}"
                     matchLabelKeys:
                       - pod-template-hash
+
+    # Enforced as a hard floor, no exemptions (incl. scale-to-zero) - this
+    # policy is treated as prod. 3 replicas so full 3-zone coverage is
+    # actually achievable, not just >1 for bare redundancy.
+    - name: enforce-minimum-replicas
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+      preconditions:
+        all:
+          - key: "{{ request.object.spec.replicas }}"
+            operator: LessThan
+            value: 3
+      mutate:
+        patchStrategicMerge:
+          spec:
+            replicas: 3
