@@ -14,12 +14,34 @@ metadata:
   name: default-zone-spread
 spec:
   rules:
+    # Stamps zone-policy.io/managed-spread: "true" on every successful
+    # mutation. This is required, not decorative: mutating webhooks run
+    # before validating webhooks in the same admission request, so a
+    # planned ValidatingPolicy that reports Deployments with pre-existing
+    # scheduling config (case 3/4) would otherwise see topologySpreadConstraints
+    # on EVERY Deployment by the time it runs - including the ones we just
+    # successfully auto-balanced - and couldn't tell "we injected this" apart
+    # from "the developer already had their own config and we backed off".
+    # The annotation is that signal.
     - name: inject-zone-topology-spread
       match:
         any:
           - resources:
               kinds:
                 - Deployment
+      # System/infra namespaces excluded: this policy is for application
+      # workloads, not cluster components. Without this, kind's own
+      # coredns and Kyverno's own controller Deployments get matched too -
+      # mutating cluster-critical infrastructure was never the intent.
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+                - kyverno
+                - local-path-storage
       preconditions:
         all:
           - key: "{{ request.object.spec.template.spec.topologySpreadConstraints || '' }}"
@@ -33,12 +55,27 @@ spec:
             value: ''
       mutate:
         patchStrategicMerge:
+          metadata:
+            annotations:
+              zone-policy.io/managed-spread: "true"
           spec:
             template:
               spec:
                 topologySpreadConstraints:
                   - maxSkew: 1
                     topologyKey: topology.kubernetes.io/zone
+                    whenUnsatisfiable: ScheduleAnyway
+                    labelSelector:
+                      matchLabels: "{{ request.object.spec.selector.matchLabels }}"
+                    matchLabelKeys:
+                      - pod-template-hash
+                  # Zone spread alone allows multiple replicas to land on the
+                  # same node within a zone - still a single point of failure
+                  # even though the zone has capacity elsewhere. Matches
+                  # Kubernetes' own built-in default constraints, which spread
+                  # on both hostname and zone, not just zone.
+                  - maxSkew: 1
+                    topologyKey: kubernetes.io/hostname
                     whenUnsatisfiable: ScheduleAnyway
                     labelSelector:
                       matchLabels: "{{ request.object.spec.selector.matchLabels }}"
@@ -61,6 +98,15 @@ spec:
           - resources:
               kinds:
                 - Deployment
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+                - kyverno
+                - local-path-storage
       preconditions:
         all:
           - key: "{{ request.object.spec.replicas }}"

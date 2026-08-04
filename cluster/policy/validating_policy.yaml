@@ -1,0 +1,59 @@
+# Audit only, never rejects - treated as a staging-like environment for
+# now: mutate where we safely can, report (don't block) where we can't.
+# Reporting-only for both case 3 (pre-existing soft/preferred constraints,
+# which the mutation could technically have overridden but doesn't) and
+# case 4 (pre-existing hard/required constraints, which it genuinely can't
+# safely override) - not differentiated yet, both just mean "this workload
+# has its own scheduling opinion and zone balance was not auto-enforced".
+#
+# Relies on the zone-policy.io/managed-spread annotation stamped by
+# mutating_policy.yaml to distinguish "developer's own pre-existing config"
+# from "config we just injected" - see that file for why this is required
+# rather than just checking whether topologySpreadConstraints exists.
+#
+# Uses the modern CEL-based ValidatingPolicy kind, not ClusterPolicy.
+# Unlike the mutating policy, this isn't stuck on the deprecated engine:
+# the MutatingPolicy bugs we hit were specific to constructing a mutation
+# patch (ApplyConfiguration atomic-field handling, JSONPatch CEL type
+# inference on the value being written). A pure boolean validation
+# expression doesn't construct a patch at all, so it doesn't hit either
+# issue - confirmed empirically against the live cluster before switching.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: report-unmanaged-scheduling-config
+spec:
+  validationActions:
+    - Audit
+  matchConstraints:
+    # System/infra namespaces excluded, same reasoning as mutating_policy.yaml -
+    # this is for application workloads, not cluster components like coredns
+    # or Kyverno's own controllers.
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values:
+            - kube-system
+            - kube-node-lease
+            - kube-public
+            - kyverno
+            - local-path-storage
+    resourceRules:
+      - apiGroups: ['apps']
+        apiVersions: ['v1']
+        operations: ['CREATE', 'UPDATE']
+        resources: ['deployments']
+  validations:
+    - expression: >
+        !(has(object.spec.template.spec.topologySpreadConstraints) ||
+          has(object.spec.template.spec.nodeSelector) ||
+          has(object.spec.template.spec.affinity)) ||
+        (has(object.metadata.annotations) &&
+         ('zone-policy.io/managed-spread' in object.metadata.annotations) &&
+         object.metadata.annotations['zone-policy.io/managed-spread'] == 'true')
+      message: >-
+        This Deployment defines its own topologySpreadConstraints,
+        nodeSelector, or affinity, so the zone-balance mutating policy
+        left it untouched. Zone balance for this workload was not
+        auto-enforced - verify that's intentional.
