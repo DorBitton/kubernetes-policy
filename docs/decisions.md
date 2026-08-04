@@ -3,6 +3,16 @@
 Short log of the non-obvious calls made on this project, and why. Format per
 entry: what we chose, why, pros, cons.
 
+## Install split into setup.sh and apply-policy.sh
+
+**Why:** applying policy is a separate, deliberate step from standing up the
+cluster, so it's possible to deploy test apps against a bare cluster first
+and see the "before" state, then apply policy and see exactly what changes.
+**Pros:** makes the before/after effect of the policy directly observable;
+matches how the edge-case demos in `docs/testing.md` are structured.
+**Cons:** one more script to run and document; someone who only runs
+`setup.sh` might assume policy is already active.
+
 ## Local cluster: kind
 
 **Why:** closest local equivalent to EKS — its config file lets us declare
@@ -22,15 +32,6 @@ keyed on the wrong label.
 **Pros:** makes node-spread vs zone-spread distinguishable in test output.
 **Cons:** not a symmetric, realistic-looking topology; more nodes on a
 single dev machine than the minimum needed.
-
-## Kyverno as the policy engine
-
-**Why:** native Kubernetes CRDs, no custom webhook server to write/run/secure
-ourselves, large community policy library to reference.
-**Pros:** fast to iterate; well-documented; both mutate and validate in one
-tool.
-**Cons:** turned out to have real bugs in its newest policy engine (see
-below) — cost significant time to isolate and work around.
 
 ## Mutating policy: classic `ClusterPolicy`, not the CEL-based `MutatingPolicy`
 

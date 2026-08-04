@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Sets up everything needed to reproduce this project locally:
-# kind + helm (if missing) -> kind cluster -> Kyverno -> our policies.
+# Sets up the cluster and Kyverno, but does NOT apply our policies -
+# see apply-policy.sh for that, kept separate so you can deploy test
+# apps against a bare cluster first if you want to see the "before".
+# kind + helm (if missing) -> kind cluster -> Kyverno.
 # Safe to re-run: skips steps that are already done.
 set -euo pipefail
 
@@ -51,8 +53,8 @@ helm repo update >/dev/null
 helm upgrade --install kyverno kyverno/kyverno \
   -n kyverno --create-namespace --version "$KYVERNO_VERSION" --wait
 
-echo "==> Applying zone-balance policies"
-kubectl apply -f "$REPO_ROOT/cluster/policy/mutating-policy.yaml"
-kubectl apply -f "$REPO_ROOT/cluster/policy/validating-policy.yaml"
+echo "==> Done. Cluster is ready, policies not yet applied."
+echo "    Verify with: kubectl get nodes -L topology.kubernetes.io/zone"
+echo "    Apply policies now with: ./install/apply-policy.sh"
 
-echo "==> Done. Verify with: kubectl get nodes -L topology.kubernetes.io/zone"
+

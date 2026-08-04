@@ -31,8 +31,10 @@ project.
   Deployments that don't already define their own scheduling config.
 - `cluster/policy/validating-policy.yaml` — Kyverno `ValidatingPolicy`: audits (never
   rejects) Deployments the mutating policy backed off from.
-- `install/README.md` + `install/setup.sh` — prerequisites and a single script that
-  installs kind/helm/Kyverno, creates the cluster, and applies our policies.
+- `install/README.md` + `install/setup.sh` — prerequisites and a script that installs
+  kind/helm/Kyverno and creates the cluster (deliberately does not apply policy).
+- `install/apply-policy.sh` — applies `cluster/policy/*.yaml`, kept separate from setup
+  so you can deploy test apps against a bare cluster first and see the "before".
 - `test-apps/` — fixture Deployments used to probe scheduling edge cases:
   - `app-no-constraints/` — baseline, no scheduling config at all.
   - `app-soft-affinity/` — preferred (soft) nodeAffinity toward zone-a.
@@ -71,8 +73,8 @@ demonstrated 5 edge cases the policy needs to survive:
 
 ## Reproducing this state
 
-Run `install/setup.sh` (see `install/README.md`), then `docs/testing.md` for the
-commands used for the edge-case demos above.
+Run `install/setup.sh`, then `install/apply-policy.sh` (see `install/README.md`).
+`docs/testing.md` has the commands used for the edge-case demos above.
 
 ## Current cluster state
 

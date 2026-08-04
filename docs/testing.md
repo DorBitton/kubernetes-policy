@@ -1,7 +1,8 @@
 # Reproducing the edge-case tests
 
 Not part of install — these are the exact commands used to demonstrate the
-edge cases listed in the top-level README. Run after `install/setup.sh`.
+edge cases listed in the top-level README. Run after `install/setup.sh`
+(policy intentionally not yet applied — see below).
 
 ## Baseline + conflicting-constraint fixtures
 
@@ -14,6 +15,32 @@ kubectl get pods -l app=app-soft-affinity -o wide
 
 kubectl apply -f test-apps/app-hard-affinity/deployment.yaml
 kubectl get pods -l app=app-hard-affinity -o wide
+```
+
+## Applying policy after the fact
+
+Deployments above were created against a bare cluster (no policy applied
+yet), so none of them have any injected constraints at this point. Now apply
+policy and confirm nothing already running gets touched retroactively, but
+the next update does:
+
+```
+kubectl get deployment app-no-constraints -o jsonpath='{.spec.template.spec.topologySpreadConstraints}'
+# result: empty - policy doesn't exist yet
+
+./install/apply-policy.sh
+
+kubectl get deployment app-no-constraints -o jsonpath='{.spec.template.spec.topologySpreadConstraints}'
+# result: still empty - applying a policy doesn't retroactively touch existing objects
+
+kubectl rollout restart deployment/app-no-constraints
+kubectl rollout status deployment/app-no-constraints --timeout=60s
+kubectl get deployment app-no-constraints -o jsonpath='{.spec.template.spec.topologySpreadConstraints}'
+# result: now populated (zone + hostname constraints)
+
+kubectl get policyreport -n default -o wide
+# result (may take ~15s to appear): app-no-constraints passes, app-soft-affinity
+# and app-hard-affinity fail (their own scheduling config was left untouched)
 ```
 
 ## Case 1 — capacity added after pods already scheduled
