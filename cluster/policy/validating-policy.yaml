@@ -7,7 +7,7 @@
 # has its own scheduling opinion and zone balance was not auto-enforced".
 #
 # Relies on the zone-policy.io/managed-spread annotation stamped by
-# mutating_policy.yaml to distinguish "developer's own pre-existing config"
+# mutating-policy.yaml to distinguish "developer's own pre-existing config"
 # from "config we just injected" - see that file for why this is required
 # rather than just checking whether topologySpreadConstraints exists.
 #
@@ -26,7 +26,7 @@ spec:
   validationActions:
     - Audit
   matchConstraints:
-    # System/infra namespaces excluded, same reasoning as mutating_policy.yaml -
+    # System/infra namespaces excluded, same reasoning as mutating-policy.yaml -
     # this is for application workloads, not cluster components like coredns
     # or Kyverno's own controllers.
     namespaceSelector:

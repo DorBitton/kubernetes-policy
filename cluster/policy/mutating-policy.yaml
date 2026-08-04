@@ -11,7 +11,7 @@
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
-  name: default-zone-spread
+  name: zone-balance
 spec:
   rules:
     # Stamps zone-policy.io/managed-spread: "true" on every successful
@@ -23,7 +23,7 @@ spec:
     # successfully auto-balanced - and couldn't tell "we injected this" apart
     # from "the developer already had their own config and we backed off".
     # The annotation is that signal.
-    - name: inject-zone-topology-spread
+    - name: inject-topology-spread
       match:
         any:
           - resources:
