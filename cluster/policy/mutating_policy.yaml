@@ -48,6 +48,13 @@ spec:
     # Enforced as a hard floor, no exemptions (incl. scale-to-zero) - this
     # policy is treated as prod. 3 replicas so full 3-zone coverage is
     # actually achievable, not just >1 for bare redundancy.
+    #
+    # Deliberately matches only Deployment, not the Deployment/scale
+    # subresource - kubectl scale and HPA-driven changes are informed
+    # operational decisions by someone who already knows the tradeoffs,
+    # not a developer's default manifest that never considered zones/HA
+    # at all. This policy exists to cover the latter; fighting a deliberate
+    # scale action (incl. scale-to-zero for maintenance) isn't its job.
     - name: enforce-minimum-replicas
       match:
         any:
