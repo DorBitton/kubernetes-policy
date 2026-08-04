@@ -11,13 +11,45 @@ for the original brief and `CLAUDE.md` for the working agreement used to build t
   control-plane node. Asymmetric node-per-zone count is deliberate — with 1 node per
   zone, "spread across nodes" and "spread across zones" are indistinguishable, which
   would hide bugs in zone-aware policy later.
-- **Task 2 — policy engine: not started.** Enforcement mechanism not yet chosen
-  (options under consideration: Kyverno/OPA admission policy, mutating webhook, or
-  injected `topologySpreadConstraints`).
+- **Task 2 — policy engine: in progress.** Kyverno, installed via Helm (see
+  `install/README.md`). Mutating policy (zone + hostname spread injection, minimum-3
+  replicas floor) done and tested for Deployments; StatefulSets deliberately excluded,
+  pending a dedicated policy. Validating policy (reports Deployments the mutation
+  couldn't safely touch) done. Namespace scoping (currently matches cluster-wide,
+  including system namespaces) still outstanding.
+
+### Policy engine choices
+
+Two different Kyverno policy "kinds" are in use, deliberately, not out of inconsistency:
+
+- **`cluster/policy/mutating_policy.yaml` uses the classic, deprecated `ClusterPolicy`**
+  (Kyverno marked it deprecated in 1.17, removal targeted for v1.20 ~Oct 2026). This
+  wasn't the first choice — the modern CEL-based `MutatingPolicy` was tried first, and
+  ruled out only after hitting two separate, reproducible engine bugs when constructing
+  a `topologySpreadConstraints` entry containing a `labelSelector`: `ApplyConfiguration`
+  fails with "may not mutate atomic arrays, maps or structs", and `JSONPatch`'s CEL
+  type-checker fails to compile a map literal mixing an int with string/map values, even
+  wrapped in `dyn()`. Both confirmed as Kyverno bugs and not real Kubernetes API
+  constraints — an identical raw `kubectl patch` with the same object succeeds. Given the
+  assignment's time constraints, falling back to `ClusterPolicy`'s `patchStrategicMerge`
+  engine (which predates the CEL engine and doesn't hit either bug) was the pragmatic
+  call over waiting on an upstream fix or hand-rolling a custom webhook. Full detail is
+  documented inline in that file; revisit once fixed upstream.
+- **`cluster/policy/validating_policy.yaml` uses the modern, non-deprecated
+  `ValidatingPolicy`** (CEL-based). This isn't stuck on the same engine bugs: they were
+  specific to *constructing a mutation patch*, and a validating policy only evaluates a
+  boolean CEL expression — no patch construction involved. Confirmed empirically against
+  the live cluster (identical pass/fail results to an earlier `ClusterPolicy` prototype)
+  before committing to it.
 
 ## Repo layout
 
 - `cluster/kind-config.yaml` — cluster topology definition.
+- `cluster/policy/mutating_policy.yaml` — Kyverno `ClusterPolicy`: injects zone +
+  hostname `topologySpreadConstraints` and enforces a minimum-3-replicas floor on
+  Deployments that don't already define their own scheduling config.
+- `cluster/policy/validating_policy.yaml` — Kyverno `ValidatingPolicy`: audits (never
+  rejects) Deployments the mutating policy backed off from.
 - `install/README.md` — full reproduction log: prerequisites, cluster creation, and
   every command run so far against the cluster (not yet reorganized for readability —
   kept as a literal, ordered command log for now).

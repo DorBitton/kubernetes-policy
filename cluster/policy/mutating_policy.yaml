@@ -29,6 +29,19 @@ spec:
           - resources:
               kinds:
                 - Deployment
+      # System/infra namespaces excluded: this policy is for application
+      # workloads, not cluster components. Without this, kind's own
+      # coredns and Kyverno's own controller Deployments get matched too -
+      # mutating cluster-critical infrastructure was never the intent.
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+                - kyverno
+                - local-path-storage
       preconditions:
         all:
           - key: "{{ request.object.spec.template.spec.topologySpreadConstraints || '' }}"
@@ -56,6 +69,18 @@ spec:
                       matchLabels: "{{ request.object.spec.selector.matchLabels }}"
                     matchLabelKeys:
                       - pod-template-hash
+                  # Zone spread alone allows multiple replicas to land on the
+                  # same node within a zone - still a single point of failure
+                  # even though the zone has capacity elsewhere. Matches
+                  # Kubernetes' own built-in default constraints, which spread
+                  # on both hostname and zone, not just zone.
+                  - maxSkew: 1
+                    topologyKey: kubernetes.io/hostname
+                    whenUnsatisfiable: ScheduleAnyway
+                    labelSelector:
+                      matchLabels: "{{ request.object.spec.selector.matchLabels }}"
+                    matchLabelKeys:
+                      - pod-template-hash
 
     # Enforced as a hard floor, no exemptions (incl. scale-to-zero) - this
     # policy is treated as prod. 3 replicas so full 3-zone coverage is
@@ -73,6 +98,15 @@ spec:
           - resources:
               kinds:
                 - Deployment
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+                - kyverno
+                - local-path-storage
       preconditions:
         all:
           - key: "{{ request.object.spec.replicas }}"
