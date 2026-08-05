@@ -1,12 +1,10 @@
 # Decisions
 
-Non-obvious calls made on this project, and why.
-
 ## Install split into setup.sh and apply-policy.sh
 
 Applying policy is a separate step from standing up the cluster, so you can deploy test
 apps against a bare cluster first and see the "before" state, then apply policy and see
-exactly what changes. Costs one extra script to run and document.
+exactly what changes.
 
 ## Local cluster: kind
 
@@ -39,7 +37,7 @@ engines in one project is one more thing to explain.
 
 ## Mutate where safe, report (never reject) where not
 
-Treated as a staging-like environment for now, not prod — shouldn't block a deploy over
+Treated as a staging-like environment for now - shouldn't block a deploy over
 this. Reporting without blocking is the middle ground; it also means a genuinely
 unbalanced Deployment can still go live if nobody reads the report.
 
@@ -58,10 +56,7 @@ which spread on both.
 
 ## Minimum replicas: floor of 3, no exemptions, Deployment resource only (not /scale)
 
-Zone spread is meaningless below 3 replicas, and this policy is treated as prod, so no
-exemptions — including scale-to-zero. Doesn't match the `/scale` subresource because
-`kubectl scale`/HPA changes are a deliberate operational decision, not a developer's
-default manifest that never considered zones — fighting that isn't this policy's job.
+Doesn't match the `/scale` subresource because `kubectl scale`/HPA changes are a deliberate operational decision, not a developer's default manifest that never considered zones — fighting that isn't this policy's job.
 Trade-off: a developer relying on `kubectl apply` to scale down (instead of
 `kubectl scale`) gets overridden anyway.
 
@@ -75,9 +70,7 @@ validation is only accurate as long as mutation keeps stamping it.
 
 ## Namespace scoping: exclude system namespaces
 
-Without it, `kube-system` (coredns), Kyverno's own namespace, and `local-path-storage`
-all got matched — never the intent. The exclusion list is maintained by name, not a
-label selector, so a new system namespace added later needs to be added here too.
+The exclusion list is maintained by name, not a label selector, so a new system namespace added later needs to be added here too. (Not ideal)
 
 ## StatefulSets: documented, not policy-enforced
 
@@ -85,8 +78,4 @@ A `volumeClaimTemplate`-backed pod's PVC zone-locks to a real EBS volume on EKS 
 first time it's provisioned (`WaitForFirstConsumer`), and the PV carries that zone as a
 `nodeAffinity` from then on. The pod can never move zones again after that, no matter
 what a policy does — a `topologySpreadConstraint` has no power over a pod whose volume
-is already bound. This isn't "harder to write," it's a hole no scheduling policy can
-close: there's nothing left to enforce once the PVC exists. Also not demonstrable
-locally — kind's local-path-provisioner isn't zone-aware, so the zone-lock can't even be
-shown on this cluster. See edge case 5 in the README. Trade-off: StatefulSet zone-balance
-gets no automated help at all, only this write-up.
+is already bound. Also not demonstrable locally — kind's local-path-provisioner isn't zone-aware, so the zone-lock can't even be shown on this cluster. See edge case 5 in the README. Trade-off: StatefulSet zone-balance gets no automated help at all, only this write-up.

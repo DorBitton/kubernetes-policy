@@ -1,16 +1,14 @@
 # Kubernetes Policy — Zone-Balanced Scheduling
 
-SRE take-home assignment: enforce zone-balanced pod scheduling on a local Kubernetes
-cluster with minimum effort required from application developers. See `assignment.md`
-for the original brief and `CLAUDE.md` for the working agreement used to build this.
+enforce zone-balanced pod scheduling on a local Kubernetes cluster with minimum effort required from application developers.
 
 ## Status
 
-- **Task 1 — local cluster: done.** `kind` cluster (`cluster/kind-config.yaml`), 4
+- **Task 1 — local cluster.** `kind` cluster (`cluster/kind-config.yaml`), 4
   worker nodes labeled `topology.kubernetes.io/zone` (zone-a x2, zone-b, zone-c) plus a
   control-plane node. Node count per zone is asymmetric on purpose — see
   `docs/decisions.md`.
-- **Task 2 — policy engine: done.** Kyverno, installed via Helm (see
+- **Task 2 — policy engine.** Kyverno, installed via Helm (see
   `install/README.md`). Mutating + validating policy for Deployments (zone + hostname
   spread injection, minimum-3 replicas floor, scoped to application namespaces).
   StatefulSets are out of scope by design — see edge case 5 below for why.
